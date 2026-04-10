@@ -254,7 +254,8 @@
 
             return (
                 <div 
-                    className={`h-screen w-full bg-slate-50 text-slate-800 font-sans overflow-hidden ${isHoldingFar && filter === 'presbyopia' ? 'scale-[0.65] origin-center transition-transform duration-300' : 'scale-100 transition-transform duration-300'}`}
+                    /* 將 h-screen 改為 h-[100dvh]，動態適應手機瀏覽器的高度，防止底部被裁切 */
+                    className={`h-[100dvh] w-full bg-slate-50 text-slate-800 font-sans overflow-hidden ${isHoldingFar && filter === 'presbyopia' ? 'scale-[0.65] origin-center transition-transform duration-300' : 'scale-100 transition-transform duration-300'}`}
                 >
                     <FilterOverlay />
 
@@ -301,8 +302,8 @@
                         </div>
                     )}
 
-                    {/* 主內容區域：優化滾動與 Safe Area */}
-                    <div className="pt-[70px] pb-28 px-3 sm:px-4 max-w-4xl mx-auto h-full flex flex-col overflow-y-auto overflow-x-hidden">
+                    {/* 主內容區域：加大 pb-32 確保內容不會被底部操作區遮擋 */}
+                    <div className="pt-[70px] pb-32 px-3 sm:px-4 max-w-4xl mx-auto h-full flex flex-col overflow-y-auto overflow-x-hidden">
                         
                         {gameState === 'intro' && (
                             <div className="flex flex-col items-center justify-center min-h-full space-y-6 sm:space-y-8 animate-fade-in py-8">
@@ -493,9 +494,12 @@
 
                     </div>
 
-                    {/* 底部操作區：強化防誤觸 */}
+                    {/* 底部操作區：強化防誤觸並確保安全區內可視 */}
                     {gameState.startsWith('stage') && (filter === 'presbyopia' || filter === 'macular') && (
-                        <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 sm:p-4 z-[60] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-safe">
+                        <div 
+                            className="fixed bottom-0 left-0 right-0 bg-white border-t px-4 pt-3 sm:p-4 z-[60] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
+                            style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+                        >
                             <div className="max-w-4xl mx-auto flex justify-center items-center">
                                 {filter === 'presbyopia' && (
                                     <button 
