@@ -2,7 +2,8 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 加入 maximum-scale=1.0 與 user-scalable=0 以防止手機雙擊放大與捏合縮放 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title>老友記視界體驗 (Elderly Vision Simulator)</title>
     
     <!-- 引入 Tailwind CSS -->
@@ -23,6 +24,19 @@
             height: 100%;
             overflow: hidden;
             background-color: #f8fafc; /* slate-50 */
+            /* 提升觸控體驗，禁止雙擊延遲 */
+            touch-action: manipulation;
+            /* 預防文字意外反白 */
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        /* 隱藏捲軸但保留捲動功能，讓手機畫面更乾淨 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 10px;
         }
         @keyframes slide {
             0% { transform: translateX(-100%); }
@@ -111,10 +125,11 @@
                 const pos = Math.floor(Math.random() * 50) + 15; 
 
                 let style = {};
+                // 優化：避免對話框遮擋手機版的重要區域
                 if (edge === 0) style = { top: '15%', left: `${pos}%` };
                 else if (edge === 1) style = { bottom: '25%', left: `${pos}%` }; 
-                else if (edge === 2) style = { left: '5%', top: `${pos}%` };
-                else if (edge === 3) style = { right: '5%', top: `${pos}%` };
+                else if (edge === 2) style = { left: '2%', top: `${pos}%` };
+                else if (edge === 3) style = { right: '2%', top: `${pos}%` };
 
                 const newBubble = { id, text, emoji, style };
                 setActiveMonologues(prev => [...prev, newBubble]);
@@ -213,7 +228,7 @@
                     );
                 }
                 if (filter === 'macular') {
-                    const spotSize = 150 + (fatigue * 2);
+                    const spotSize = window.innerWidth < 600 ? 120 + (fatigue * 1.5) : 150 + (fatigue * 2); // 手機版稍微縮小起始盲點
                     const centerOpacity = Math.min(1, 0.95 + (fatigue / 300));
                     const edgeOpacity = Math.min(0.99, 0.90 + (fatigue / 300));
                     const spotPosition = isShiftingGaze ? '80% 80%' : '50% 50%';
@@ -230,7 +245,7 @@
                 if (filter === 'presbyopia') {
                     return (
                         <div 
-                            className={`pointer-events-none fixed inset-0 z-50 transition-all duration-300 ${isHoldingFar ? 'backdrop-blur-none' : 'backdrop-blur-[3px]'}`}
+                            className={`pointer-events-none fixed inset-0 z-50 transition-all duration-300 ${isHoldingFar ? 'backdrop-blur-none' : 'backdrop-blur-[4px]'}`}
                         />
                     );
                 }
@@ -239,26 +254,26 @@
 
             return (
                 <div 
-                    className={`min-h-screen bg-slate-50 text-slate-800 font-sans overflow-hidden ${isHoldingFar && filter === 'presbyopia' ? 'scale-[0.65] origin-center transition-transform duration-300' : 'scale-100 transition-transform duration-300'}`}
+                    className={`h-screen w-full bg-slate-50 text-slate-800 font-sans overflow-hidden ${isHoldingFar && filter === 'presbyopia' ? 'scale-[0.65] origin-center transition-transform duration-300' : 'scale-100 transition-transform duration-300'}`}
                 >
                     <FilterOverlay />
 
                     {/* 頂部資訊列 */}
                     {gameState.startsWith('stage') && (
-                        <div className="fixed top-0 left-0 right-0 h-16 bg-white shadow-md px-4 flex justify-between items-center z-[60] gap-2 sm:gap-4">
-                            <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-                                <div className={`flex items-center gap-1 sm:gap-2 font-bold text-base sm:text-lg ${time < 15 ? 'text-red-600 animate-pulse' : 'text-slate-700'}`}>
-                                    <span className="text-xl">🕰️</span> {time} 秒
+                        <div className="fixed top-0 left-0 right-0 h-[64px] bg-white shadow-md px-3 sm:px-4 flex justify-between items-center z-[60] gap-2 sm:gap-4">
+                            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                                <div className={`flex items-center gap-1 sm:gap-2 font-bold text-sm sm:text-lg ${time < 15 ? 'text-red-600 animate-pulse' : 'text-slate-700'}`}>
+                                    <span className="text-lg sm:text-xl">🕰️</span> {time} 秒
                                 </div>
-                                <div className="hidden lg:flex items-center gap-2 text-sm text-slate-500">
+                                <div className="hidden sm:flex items-center gap-2 text-xs sm:text-sm text-slate-500">
                                     <span className="text-base">👁️</span> 疲勞值: 
-                                    <div className="w-16 md:w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                    <div className="w-12 sm:w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
                                         <div className="h-full bg-orange-500" style={{ width: `${Math.min(100, fatigue)}%` }}></div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="hidden md:flex items-center gap-2 font-semibold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full shrink-0 text-sm ml-auto">
+                            <div className="hidden sm:flex items-center gap-2 font-semibold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full shrink-0 text-xs sm:text-sm ml-auto">
                                 {filter === 'cataracts' && '模擬：白內障'}
                                 {filter === 'macular' && '模擬：黃斑點病變'}
                                 {filter === 'presbyopia' && '模擬：老花'}
@@ -270,33 +285,35 @@
                     {activeMonologues.map(bubble => (
                         <div 
                             key={bubble.id}
-                            className="fixed z-[70] max-w-[200px] sm:max-w-xs bg-white text-slate-700 p-3 rounded-2xl shadow-xl border border-slate-100 flex items-start gap-2 animate-popup pointer-events-none"
+                            className="fixed z-[70] w-3/4 max-w-[200px] sm:max-w-xs bg-white text-slate-700 p-2 sm:p-3 rounded-2xl shadow-xl border border-slate-100 flex items-start gap-2 animate-popup pointer-events-none"
                             style={bubble.style}
                         >
-                            <div className="text-2xl shrink-0">{bubble.emoji}</div>
-                            <p className="text-sm font-bold mt-1 leading-snug">「{bubble.text}」</p>
+                            <div className="text-xl sm:text-2xl shrink-0">{bubble.emoji}</div>
+                            <p className="text-xs sm:text-sm font-bold mt-1 leading-snug">「{bubble.text}」</p>
                             <div className="absolute w-3 h-3 bg-white transform rotate-45 -bottom-1.5 left-6 border-b border-r border-slate-100"></div>
                         </div>
                     ))}
 
+                    {/* 回饋訊息置中，確保手機版不會跑版 */}
                     {feedbackMsg && (
-                        <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 z-[80] px-6 py-3 rounded-lg shadow-xl text-white font-bold text-lg transition-all ${feedbackMsg.isError ? 'bg-red-500 animate-bounce' : 'bg-green-500'}`}>
+                        <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 w-[90%] max-w-sm text-center z-[80] px-4 py-3 rounded-lg shadow-xl text-white font-bold text-sm sm:text-lg transition-all ${feedbackMsg.isError ? 'bg-red-500 animate-bounce' : 'bg-green-500'}`}>
                             {feedbackMsg.text}
                         </div>
                     )}
 
-                    <div className="pt-20 pb-24 px-4 max-w-4xl mx-auto h-screen flex flex-col">
+                    {/* 主內容區域：優化滾動與 Safe Area */}
+                    <div className="pt-[70px] pb-28 px-3 sm:px-4 max-w-4xl mx-auto h-full flex flex-col overflow-y-auto overflow-x-hidden">
                         
                         {gameState === 'intro' && (
-                            <div className="flex flex-col items-center justify-center h-full space-y-8 animate-fade-in">
-                                <div className="text-center space-y-4">
-                                    <h1 className="text-4xl md:text-5xl font-extrabold text-slate-800 tracking-tight">老友記<span className="text-orange-500">視界體驗</span></h1>
-                                    <p className="text-lg text-slate-600 max-w-lg mx-auto">
+                            <div className="flex flex-col items-center justify-center min-h-full space-y-6 sm:space-y-8 animate-fade-in py-8">
+                                <div className="text-center space-y-3 sm:space-y-4">
+                                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-800 tracking-tight">老友記<br className="sm:hidden" /><span className="text-orange-500">視界體驗</span></h1>
+                                    <p className="text-sm sm:text-lg text-slate-600 max-w-lg mx-auto">
                                         戴上虛擬眼疾濾鏡，化身長者完成日常任務。體驗「看不清」帶來的生活不便與焦慮感。
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-3xl">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 w-full max-w-3xl">
                                     {[
                                         { id: 'cataracts', name: '白內障', desc: '視力模糊、怕光、色彩變暗淡。', icon: '🌫️', color: 'bg-yellow-100' },
                                         { id: 'macular', name: '黃斑點病變', desc: '視野中央出現黑影或扭曲，須依賴餘光。', icon: '⚫', color: 'bg-slate-200' },
@@ -317,12 +334,12 @@
                                                 const randomBusStop = BUS_STOPS[Math.floor(Math.random() * BUS_STOPS.length)];
                                                 setBusTarget(randomBusStop);
                                             }}
-                                            className={`${f.color} p-6 rounded-2xl shadow-sm hover:shadow-md transition-all hover:-translate-y-1 text-left group`}
+                                            className={`${f.color} p-5 sm:p-6 rounded-2xl shadow-sm hover:shadow-md transition-all hover:-translate-y-1 text-left group w-full`}
                                         >
-                                            <div className="text-3xl mb-3">{f.icon}</div>
-                                            <h3 className="font-bold text-xl mb-2 group-hover:text-orange-600">{f.name}</h3>
-                                            <p className="text-sm text-slate-600">{f.desc}</p>
-                                            <div className="mt-4 flex items-center text-sm font-semibold text-slate-700">
+                                            <div className="text-2xl sm:text-3xl mb-2 sm:mb-3">{f.icon}</div>
+                                            <h3 className="font-bold text-lg sm:text-xl mb-1 sm:mb-2 group-hover:text-orange-600">{f.name}</h3>
+                                            <p className="text-xs sm:text-sm text-slate-600">{f.desc}</p>
+                                            <div className="mt-3 sm:mt-4 flex items-center text-xs sm:text-sm font-semibold text-slate-700">
                                                 開始體驗 <span className="ml-1">▶️</span>
                                             </div>
                                         </button>
@@ -332,22 +349,23 @@
                         )}
 
                         {gameState === 'stage1' && (
-                            <div className="flex-1 flex flex-col relative">
-                                <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-500 relative z-[60]">
-                                    <h2 className="text-xl font-bold flex items-center gap-2"><span>☕</span> 任務一：酒樓劃飛</h2>
-                                    <p className="text-slate-600 mt-1">孫仔想食：<span className="font-bold text-orange-600">蝦餃、燒賣、叉燒包</span>。請喺點心紙上搵出並點擊佢哋！</p>
+                            <div className="flex-1 flex flex-col relative h-full">
+                                <div className="mb-4 bg-white p-3 sm:p-4 rounded-xl shadow-sm border-l-4 border-orange-500 relative z-[60] shrink-0">
+                                    <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2"><span>☕</span> 任務一：酒樓劃飛</h2>
+                                    <p className="text-sm sm:text-base text-slate-600 mt-1">孫仔想食：<span className="font-bold text-orange-600">蝦餃、燒賣、叉燒包</span>。</p>
                                 </div>
                                 
-                                <div className="grid grid-cols-4 gap-2 flex-1">
+                                {/* 在手機上顯示 3 欄，平板以上 4 欄，確保按鈕寬度適中 */}
+                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 flex-1 overflow-y-auto pb-4 content-start">
                                     {currentDimSumItems.map((item, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => handleDimSumClick(item)}
                                             disabled={dimSumFound.includes(item)}
-                                            className={`border-2 p-2 rounded-md text-center flex items-center justify-center transition-colors
+                                            className={`border-2 p-2 rounded-md text-center flex items-center justify-center transition-colors shadow-sm select-none
                                                 ${dimSumFound.includes(item) ? 'bg-green-100 border-green-500 text-green-700' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'}
-                                                ${filter === 'presbyopia' ? 'text-xs' : 'text-base font-medium'}`}
-                                            style={{ writingMode: 'vertical-rl', minHeight: '80px' }}
+                                                ${filter === 'presbyopia' ? 'text-[10px] sm:text-xs' : 'text-sm sm:text-base font-medium'}`}
+                                            style={{ writingMode: 'vertical-rl', minHeight: '70px', touchAction: 'manipulation' }}
                                         >
                                             {item}
                                         </button>
@@ -357,76 +375,80 @@
                         )}
 
                         {gameState === 'stage2' && (
-                            <div className="flex-1 flex flex-col relative">
-                                <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border-l-4 border-indigo-500 relative z-[60]">
-                                    <h2 className="text-xl font-bold flex items-center justify-between gap-2">
+                            <div className="flex-1 flex flex-col relative h-full">
+                                <div className="mb-4 bg-white p-3 sm:p-4 rounded-xl shadow-sm border-l-4 border-indigo-500 relative z-[60] shrink-0">
+                                    <h2 className="text-lg sm:text-xl font-bold flex items-center justify-between gap-2">
                                         <span className="flex items-center gap-2"><span>📍</span> 任務二：地鐵搵路</span>
-                                        <span className="text-sm font-medium bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full">
+                                        <span className="text-xs sm:text-sm font-medium bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">
                                             進度 {currentMTRTargetIndex + 1}/2
                                         </span>
                                     </h2>
-                                    <p className="text-slate-600 mt-2">約咗孫女喺 <span className="font-bold text-indigo-600 text-lg">{mtrTargets[currentMTRTargetIndex].name.split(' ')[0]}</span> 等，應該行邊個出口？</p>
+                                    <p className="text-sm sm:text-base text-slate-600 mt-2">約咗孫女喺 <span className="font-bold text-indigo-600 text-base sm:text-lg">{mtrTargets[currentMTRTargetIndex].name.split(' ')[0]}</span>，行邊個出口？</p>
                                 </div>
 
-                                <div className="bg-slate-800 p-6 rounded-xl flex-1 flex flex-col gap-4 relative overflow-hidden">
+                                <div className="bg-slate-800 p-3 sm:p-6 rounded-xl flex-1 flex flex-col relative overflow-hidden h-full">
                                     <div className="absolute inset-0 opacity-10 pointer-events-none">
-                                        <div className="w-full h-20 bg-white animate-[slide_3s_ease-in-out_infinite] mb-10"></div>
-                                        <div className="w-full h-20 bg-white animate-[slide_4s_ease-in-out_infinite_reverse]"></div>
+                                        <div className="w-full h-10 sm:h-20 bg-white animate-[slide_3s_ease-in-out_infinite] mb-6 sm:mb-10"></div>
+                                        <div className="w-full h-10 sm:h-20 bg-white animate-[slide_4s_ease-in-out_infinite_reverse]"></div>
                                     </div>
 
-                                    {MTR_EXITS.map((exit) => (
-                                        <button
-                                            key={exit.id}
-                                            onClick={() => handleMTRClick(exit.id)}
-                                            className="bg-white/90 p-4 rounded flex items-center gap-4 hover:bg-white transition-colors text-left relative z-10"
-                                        >
-                                            <div className="bg-yellow-400 text-slate-900 font-bold text-2xl w-12 h-12 flex items-center justify-center rounded shrink-0">
-                                                {exit.id}
-                                            </div>
-                                            <div>
-                                                <div className="font-bold text-lg text-slate-800">{exit.name.split(' ')[0]}</div>
-                                                <div className={`text-slate-500 ${filter === 'presbyopia' ? 'text-[8px]' : 'text-xs'}`}>{exit.name.split(' ').slice(1).join(' ')}</div>
-                                            </div>
-                                        </button>
-                                    ))}
+                                    {/* 讓地鐵選項區可滾動，防止被截斷 */}
+                                    <div className="flex-1 overflow-y-auto space-y-3 z-10 pr-1 pb-4">
+                                        {MTR_EXITS.map((exit) => (
+                                            <button
+                                                key={exit.id}
+                                                onClick={() => handleMTRClick(exit.id)}
+                                                className="w-full bg-white/90 p-3 sm:p-4 rounded-lg flex items-center gap-3 hover:bg-white transition-colors text-left shadow-sm select-none"
+                                            >
+                                                <div className="bg-yellow-400 text-slate-900 font-bold text-xl sm:text-2xl w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded shrink-0">
+                                                    {exit.id}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-bold text-base sm:text-lg text-slate-800 truncate">{exit.name.split(' ')[0]}</div>
+                                                    <div className={`text-slate-500 truncate ${filter === 'presbyopia' ? 'text-[8px]' : 'text-xs'}`}>{exit.name.split(' ').slice(1).join(' ')}</div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         )}
 
                         {gameState === 'stage3' && (
-                            <div className="flex-1 flex flex-col relative items-center">
-                                <div className="mb-6 w-full bg-white p-4 rounded-xl shadow-sm border-l-4 border-red-500 relative z-[60]">
-                                    <h2 className="text-xl font-bold flex items-center gap-2"><span>🚌</span> 任務三：搭車返屋企</h2>
-                                    <p className="text-slate-600 mt-1">搭 53 號巴士，喺 <span className="font-bold text-red-600">{busTarget.name}</span> 落車，車費幾多？請點擊正確車站。</p>
+                            <div className="flex-1 flex flex-col relative items-center h-full">
+                                <div className="mb-4 w-full bg-white p-3 sm:p-4 rounded-xl shadow-sm border-l-4 border-red-500 relative z-[60] shrink-0">
+                                    <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2"><span>🚌</span> 任務三：搭車</h2>
+                                    <p className="text-sm sm:text-base text-slate-600 mt-1">喺 <span className="font-bold text-red-600">{busTarget.name}</span> 落車，點擊正確車站。</p>
                                 </div>
 
-                                <div className="w-full max-w-sm bg-white border-8 border-slate-800 rounded-3xl h-[500px] overflow-hidden flex flex-col relative">
-                                    <div className="bg-red-600 text-white p-3 text-center font-bold flex justify-between items-center">
+                                {/* 優化手機模擬高度，使其在短螢幕上不溢出 */}
+                                <div className="w-full max-w-sm flex-1 min-h-[300px] bg-white border-[6px] sm:border-8 border-slate-800 rounded-[2rem] overflow-hidden flex flex-col relative shadow-xl">
+                                    <div className="bg-red-600 text-white p-2 sm:p-3 text-center font-bold flex justify-between items-center shrink-0">
                                         <span>&lt;</span>
-                                        <span>53 往 元朗</span>
-                                        <span className="text-xs border p-1 rounded">社區資訊站</span>
+                                        <span className="text-sm sm:text-base">53 往 元朗</span>
+                                        <span className="text-[10px] sm:text-xs border p-1 rounded">社區資訊站</span>
                                     </div>
                                     
                                     <button 
                                         onClick={() => showFeedback('㩒錯制，入咗廣告版面！', true)}
-                                        className="bg-orange-100 p-2 text-center text-xs text-orange-800 border-b flex items-center justify-between"
+                                        className="bg-orange-100 p-2 text-center text-xs text-orange-800 border-b flex items-center justify-between shrink-0 select-none"
                                     >
-                                        <span>🐨 樹熊冷知識 - 親子好去處</span>
-                                        <span className="bg-white px-1 rounded border">x</span>
+                                        <span className="truncate pr-2">🐨 樹熊冷知識 - 親子好去處</span>
+                                        <span className="bg-white px-1.5 rounded border shadow-sm">x</span>
                                     </button>
 
-                                    <div className="flex-1 overflow-y-auto p-2 space-y-2 relative">
+                                    <div className="flex-1 overflow-y-auto p-2 space-y-2 relative pb-6">
                                         <div className="absolute left-4 top-0 bottom-0 w-1 bg-red-200"></div>
                                         {BUS_STOPS.map((stop) => (
                                             <button
                                                 key={stop.no}
                                                 onClick={() => handleBusClick(stop.name)}
-                                                className="w-full flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded text-left hover:bg-slate-100 z-10 relative"
+                                                className="w-full flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded text-left hover:bg-slate-100 z-10 relative select-none"
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-3 h-3 rounded-full bg-white border-2 border-red-500 z-20"></div>
+                                                    <div className="w-3 h-3 rounded-full bg-white border-2 border-red-500 z-20 shrink-0"></div>
                                                     <div>
-                                                        <div className={`font-bold text-slate-800 ${filter === 'presbyopia' ? 'text-xs' : 'text-sm'}`}>{stop.no}. {stop.name}</div>
+                                                        <div className={`font-bold text-slate-800 ${filter === 'presbyopia' ? 'text-[10px]' : 'text-sm'}`}>{stop.no}. {stop.name}</div>
                                                         <div className={`text-slate-500 ${filter === 'presbyopia' ? 'text-[8px]' : 'text-xs'}`}>車資: {stop.fare}</div>
                                                     </div>
                                                 </div>
@@ -438,21 +460,21 @@
                         )}
 
                         {gameState === 'report' && (
-                            <div className="flex flex-col items-center justify-center h-full animate-fade-in z-50 bg-white/90 p-8 rounded-2xl shadow-xl">
-                                <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center text-orange-500 mb-6 text-4xl">
+                            <div className="flex flex-col items-center justify-center h-full animate-fade-in z-50 bg-white/95 p-6 sm:p-8 rounded-2xl shadow-xl">
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-orange-100 rounded-full flex items-center justify-center text-orange-500 mb-4 sm:mb-6 text-3xl sm:text-4xl">
                                     {time > 0 ? '👁️' : '⚠️'}
                                 </div>
-                                <h2 className="text-3xl font-bold mb-2">
+                                <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-center">
                                     {time > 0 ? '體驗完成！' : '時間到！任務失敗'}
                                 </h2>
-                                <p className="text-lg text-slate-600 mb-8 text-center max-w-md">
+                                <p className="text-base sm:text-lg text-slate-600 mb-6 text-center max-w-md">
                                     剩餘時間：<span className="font-bold text-orange-600">{time} 秒</span> <br/>
                                     最終疲勞值：<span className="font-bold text-orange-600">{fatigue}%</span>
                                 </p>
 
-                                <div className="bg-slate-50 p-6 rounded-xl text-left max-w-lg mb-8 border border-slate-200">
-                                    <h3 className="font-bold text-lg mb-3">📝 體驗反思報告：</h3>
-                                    <p className="text-slate-700 leading-relaxed">
+                                <div className="bg-slate-50 p-4 sm:p-6 rounded-xl text-left max-w-lg mb-6 sm:mb-8 border border-slate-200">
+                                    <h3 className="font-bold text-base sm:text-lg mb-2">📝 體驗反思報告：</h3>
+                                    <p className="text-sm sm:text-base text-slate-700 leading-relaxed">
                                         {time > 0 
                                             ? '雖然你成功完成了任務，但過程中是否感到視力受阻帶來的焦慮與壓力？尋找正確資訊時，是否覺得特別吃力？' 
                                             : '限時的壓力加上視覺的障礙，讓你無法順利完成日常小事。這正是許多長者每天面對的無力感。'}
@@ -462,7 +484,7 @@
                                 </div>
                                 <button 
                                     onClick={resetGame}
-                                    className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-full font-bold text-lg transition-colors flex items-center gap-2 shadow-lg"
+                                    className="bg-orange-500 hover:bg-orange-600 text-white px-6 sm:px-8 py-3 rounded-full font-bold text-base sm:text-lg transition-colors flex items-center gap-2 shadow-lg w-full sm:w-auto justify-center"
                                 >
                                     <span>🔄</span> 重新體驗其他眼疾
                                 </button>
@@ -471,17 +493,18 @@
 
                     </div>
 
-                    {/* 底部操作區 */}
+                    {/* 底部操作區：強化防誤觸 */}
                     {gameState.startsWith('stage') && (filter === 'presbyopia' || filter === 'macular') && (
-                        <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 z-[60] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                            <div className="max-w-4xl mx-auto flex justify-center items-center gap-4">
+                        <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-3 sm:p-4 z-[60] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-safe">
+                            <div className="max-w-4xl mx-auto flex justify-center items-center">
                                 {filter === 'presbyopia' && (
                                     <button 
                                         onMouseDown={() => setIsHoldingFar(true)}
                                         onMouseUp={() => setIsHoldingFar(false)}
-                                        onTouchStart={() => setIsHoldingFar(true)}
-                                        onTouchEnd={() => setIsHoldingFar(false)}
-                                        className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-6 py-2 rounded-full font-bold flex items-center gap-2 transition-colors shadow-md"
+                                        onTouchStart={(e) => { e.preventDefault(); setIsHoldingFar(true); }}
+                                        onTouchEnd={(e) => { e.preventDefault(); setIsHoldingFar(false); }}
+                                        className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg w-full sm:w-auto justify-center select-none"
+                                        style={{ touchAction: 'none' }}
                                     >
                                         <span>🖐️</span> 撳住拉遠手機 (瞇起眼)
                                     </button>
@@ -491,9 +514,10 @@
                                     <button 
                                         onMouseDown={() => setIsShiftingGaze(true)}
                                         onMouseUp={() => setIsShiftingGaze(false)}
-                                        onTouchStart={() => setIsShiftingGaze(true)}
-                                        onTouchEnd={() => setIsShiftingGaze(false)}
-                                        className="bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white px-6 py-2 rounded-full font-bold flex items-center gap-2 transition-colors shadow-md"
+                                        onTouchStart={(e) => { e.preventDefault(); setIsShiftingGaze(true); }}
+                                        onTouchEnd={(e) => { e.preventDefault(); setIsShiftingGaze(false); }}
+                                        className="bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg w-full sm:w-auto justify-center select-none"
+                                        style={{ touchAction: 'none' }}
                                     >
                                         <span>👁️</span> 撳住用餘光睇 (偏心注視)
                                     </button>
@@ -505,7 +529,6 @@
             );
         }
 
-        // 啟動 React 應用程式
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
