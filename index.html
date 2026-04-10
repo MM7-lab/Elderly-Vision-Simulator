@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>老友記視界體驗 (Elderly Vision Simulator)</title>
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 React 與 ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- 引入 Babel 以便在瀏覽器中編譯 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #f8fafc; /* slate-50 */
+        }
+        @keyframes slide {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes popup {
+            0% { opacity: 0; transform: scale(0.8) translateY(10px); }
+            10% { opacity: 1; transform: scale(1) translateY(0); }
+            85% { opacity: 1; transform: scale(1) translateY(0); }
+            100% { opacity: 0; transform: scale(0.8) translateY(-10px); }
+        }
+        .animate-popup {
+            animation: popup 4s ease-in-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
+
+        // --- 遊戲資料 ---
+        const DIM_SUM_ITEMS = ['蝦餃', '燒賣', '叉燒包', '排骨', '鳳爪', '馬拉糕', '腸粉', '咸水角', '春卷', '蘿蔔糕', '牛肉球', '粉果', '糯米雞', '芋角', '蛋撻', '奶黃包'];
+        const TARGET_DIM_SUM = ['蝦餃', '燒賣', '叉燒包'];
+
+        const MTR_EXITS = [
+            { id: 'A', name: '時代廣場 Times Square' },
+            { id: 'B', name: '跑馬地馬場 Happy Valley Racecourse' },
+            { id: 'C', name: '信和廣場 Sino Plaza' },
+            { id: 'D', name: '崇光百貨 SOGO' },
+            { id: 'E', name: '維多利亞公園 Victoria Park' },
+            { id: 'F', name: '香港中央圖書館 HK Central Library' },
+        ];
+
+        const BUS_STOPS = [
+            { no: 19, name: '大欖涌', fare: '$10.0' },
+            { no: 20, name: '青龍頭村', fare: '$10.0' },
+            { no: 21, name: '豪景花園', fare: '$10.0' },
+            { no: 22, name: '御天峰', fare: '$10.0' },
+            { no: 23, name: '御海峰', fare: '$6.4' },
+            { no: 24, name: '嘉龍村', fare: '$6.4' },
+        ];
+
+        const MONOLOGUES = [
+            "唉，啲字點解印到咁細隻...",
+            "快啲啦，後面啲人行得好急，好驚阻住人...",
+            "睇唔清，好驚㩒錯俾人鬧...",
+            "隻眼好攰，出面又好光，真係辛苦...",
+            "以前睇嘢好清楚㗎，而家點解會搞成咁...",
+            "孫仔想要食咩話？我唔好買錯啊...",
+        ];
+
+        function App() {
+            const [gameState, setGameState] = useState('intro');
+            const [filter, setFilter] = useState('none');
+            const [time, setTime] = useState(60);
+            const [fatigue, setFatigue] = useState(0);
+            const [feedbackMsg, setFeedbackMsg] = useState(null);
+            
+            const [activeMonologues, setActiveMonologues] = useState([]);
+            const [isHoldingFar, setIsHoldingFar] = useState(false);
+            const [isShiftingGaze, setIsShiftingGaze] = useState(false);
+            
+            const [dimSumFound, setDimSumFound] = useState([]);
+            const [currentDimSumItems, setCurrentDimSumItems] = useState([...DIM_SUM_ITEMS]);
+            
+            const [mtrTargets, setMtrTargets] = useState([MTR_EXITS[0], MTR_EXITS[1]]);
+            const [currentMTRTargetIndex, setCurrentMTRTargetIndex] = useState(0);
+
+            const [busTarget, setBusTarget] = useState(BUS_STOPS[1]);
+
+            const spawnMonologue = useCallback(() => {
+                const text = MONOLOGUES[Math.floor(Math.random() * MONOLOGUES.length)];
+                const emoji = Math.random() > 0.5 ? '👴' : '👵';
+                const id = Date.now() + Math.random();
+                
+                const edge = Math.floor(Math.random() * 4);
+                const pos = Math.floor(Math.random() * 50) + 15; 
+
+                let style = {};
+                if (edge === 0) style = { top: '15%', left: `${pos}%` };
+                else if (edge === 1) style = { bottom: '25%', left: `${pos}%` }; 
+                else if (edge === 2) style = { left: '5%', top: `${pos}%` };
+                else if (edge === 3) style = { right: '5%', top: `${pos}%` };
+
+                const newBubble = { id, text, emoji, style };
+                setActiveMonologues(prev => [...prev, newBubble]);
+
+                setTimeout(() => {
+                    setActiveMonologues(prev => prev.filter(m => m.id !== id));
+                }, 4000);
+            }, []);
+
+            useEffect(() => {
+                let timer;
+                if (gameState.startsWith('stage') && time > 0) {
+                    timer = setInterval(() => {
+                        setTime(prev => prev - 1);
+                        setFatigue(prev => prev + 2);
+                        if (Math.random() > 0.85) {
+                            spawnMonologue();
+                        }
+                    }, 1000);
+                } else if (time <= 0 && gameState.startsWith('stage')) {
+                    setGameState('report');
+                }
+                return () => clearInterval(timer);
+            }, [gameState, time, spawnMonologue]);
+
+            const showFeedback = (msg, isError = false) => {
+                setFeedbackMsg({ text: msg, isError });
+                if (isError) setTime(prev => Math.max(0, prev - 5));
+                setTimeout(() => setFeedbackMsg(null), 2000);
+            };
+
+            const handleDimSumClick = (item) => {
+                if (TARGET_DIM_SUM.includes(item)) {
+                    if (!dimSumFound.includes(item)) {
+                        const newFound = [...dimSumFound, item];
+                        setDimSumFound(newFound);
+                        showFeedback(`搵到 ${item} 喇！`);
+                        if (newFound.length === TARGET_DIM_SUM.length) {
+                            setTimeout(() => setGameState('stage2'), 1000);
+                        }
+                    }
+                } else {
+                    showFeedback(`睇錯咗！呢個係${item}，扣 5 秒！`, true);
+                }
+            };
+
+            const handleMTRClick = (exitId) => {
+                const currentTarget = mtrTargets[currentMTRTargetIndex];
+                const targetName = currentTarget.name.split(' ')[0];
+
+                if (exitId === currentTarget.id) {
+                    if (currentMTRTargetIndex === 0) {
+                        showFeedback(`啱喇！${targetName}係 ${exitId} 出口！請搵下一個地點。`);
+                        setTimeout(() => setCurrentMTRTargetIndex(1), 1000);
+                    } else {
+                        showFeedback(`啱喇！${targetName}係 ${exitId} 出口！地鐵任務完成！`);
+                        setTimeout(() => setGameState('stage3'), 1000);
+                    }
+                } else {
+                    showFeedback(`錯咗！呢個出口去唔到${targetName}，扣 5 秒！`, true);
+                }
+            };
+
+            const handleBusClick = (stopName) => {
+                if (stopName === busTarget.name) {
+                    showFeedback(`查到喇！準備喺${busTarget.name}落車！`);
+                    setTimeout(() => setGameState('report'), 1000);
+                } else {
+                    showFeedback(`㩒錯制，入咗廣告版面或者揀錯站！扣 5 秒！`, true);
+                }
+            };
+
+            const resetGame = () => {
+                setGameState('intro');
+                setFilter('none');
+                setTime(60);
+                setFatigue(0);
+                setDimSumFound([]);
+                setIsHoldingFar(false);
+                setIsShiftingGaze(false);
+                setCurrentMTRTargetIndex(0);
+                setActiveMonologues([]);
+            };
+
+            const FilterOverlay = () => {
+                if (filter === 'cataracts') {
+                    const blurAmount = 1 + (fatigue / 100) * 3;
+                    return (
+                        <div 
+                            className="pointer-events-none fixed inset-0 z-50 mix-blend-multiply"
+                            style={{ 
+                                backdropFilter: `blur(${blurAmount}px) contrast(70%) sepia(40%)`,
+                                backgroundColor: `rgba(200, 180, 100, ${0.1 + fatigue/400})` 
+                            }} 
+                        />
+                    );
+                }
+                if (filter === 'macular') {
+                    const spotSize = 150 + (fatigue * 2);
+                    const centerOpacity = Math.min(1, 0.95 + (fatigue / 300));
+                    const edgeOpacity = Math.min(0.99, 0.90 + (fatigue / 300));
+                    const spotPosition = isShiftingGaze ? '80% 80%' : '50% 50%';
+                    
+                    return (
+                        <div 
+                            className="pointer-events-none fixed inset-0 z-50 transition-all duration-500 ease-out"
+                            style={{
+                                background: `radial-gradient(circle ${spotSize}px at ${spotPosition}, rgba(10,10,10,${centerOpacity}) 0%, rgba(20,20,20,${edgeOpacity}) 50%, transparent 85%)`,
+                            }}
+                        />
+                    );
+                }
+                if (filter === 'presbyopia') {
+                    return (
+                        <div 
+                            className={`pointer-events-none fixed inset-0 z-50 transition-all duration-300 ${isHoldingFar ? 'backdrop-blur-none' : 'backdrop-blur-[3px]'}`}
+                        />
+                    );
+                }
+                return null;
+            };
+
+            return (
+                <div 
+                    className={`min-h-screen bg-slate-50 text-slate-800 font-sans overflow-hidden ${isHoldingFar && filter === 'presbyopia' ? 'scale-[0.65] origin-center transition-transform duration-300' : 'scale-100 transition-transform duration-300'}`}
+                >
+                    <FilterOverlay />
+
+                    {/* 頂部資訊列 */}
+                    {gameState.startsWith('stage') && (
+                        <div className="fixed top-0 left-0 right-0 h-16 bg-white shadow-md px-4 flex justify-between items-center z-[60] gap-2 sm:gap-4">
+                            <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                                <div className={`flex items-center gap-1 sm:gap-2 font-bold text-base sm:text-lg ${time < 15 ? 'text-red-600 animate-pulse' : 'text-slate-700'}`}>
+                                    <span className="text-xl">🕰️</span> {time} 秒
+                                </div>
+                                <div className="hidden lg:flex items-center gap-2 text-sm text-slate-500">
+                                    <span className="text-base">👁️</span> 疲勞值: 
+                                    <div className="w-16 md:w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                        <div className="h-full bg-orange-500" style={{ width: `${Math.min(100, fatigue)}%` }}></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="hidden md:flex items-center gap-2 font-semibold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full shrink-0 text-sm ml-auto">
+                                {filter === 'cataracts' && '模擬：白內障'}
+                                {filter === 'macular' && '模擬：黃斑點病變'}
+                                {filter === 'presbyopia' && '模擬：老花'}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 浮動對話框 (心理獨白) */}
+                    {activeMonologues.map(bubble => (
+                        <div 
+                            key={bubble.id}
+                            className="fixed z-[70] max-w-[200px] sm:max-w-xs bg-white text-slate-700 p-3 rounded-2xl shadow-xl border border-slate-100 flex items-start gap-2 animate-popup pointer-events-none"
+                            style={bubble.style}
+                        >
+                            <div className="text-2xl shrink-0">{bubble.emoji}</div>
+                            <p className="text-sm font-bold mt-1 leading-snug">「{bubble.text}」</p>
+                            <div className="absolute w-3 h-3 bg-white transform rotate-45 -bottom-1.5 left-6 border-b border-r border-slate-100"></div>
+                        </div>
+                    ))}
+
+                    {feedbackMsg && (
+                        <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 z-[80] px-6 py-3 rounded-lg shadow-xl text-white font-bold text-lg transition-all ${feedbackMsg.isError ? 'bg-red-500 animate-bounce' : 'bg-green-500'}`}>
+                            {feedbackMsg.text}
+                        </div>
+                    )}
+
+                    <div className="pt-20 pb-24 px-4 max-w-4xl mx-auto h-screen flex flex-col">
+                        
+                        {gameState === 'intro' && (
+                            <div className="flex flex-col items-center justify-center h-full space-y-8 animate-fade-in">
+                                <div className="text-center space-y-4">
+                                    <h1 className="text-4xl md:text-5xl font-extrabold text-slate-800 tracking-tight">老友記<span className="text-orange-500">視界體驗</span></h1>
+                                    <p className="text-lg text-slate-600 max-w-lg mx-auto">
+                                        戴上虛擬眼疾濾鏡，化身長者完成日常任務。體驗「看不清」帶來的生活不便與焦慮感。
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-3xl">
+                                    {[
+                                        { id: 'cataracts', name: '白內障', desc: '視力模糊、怕光、色彩變暗淡。', icon: '🌫️', color: 'bg-yellow-100' },
+                                        { id: 'macular', name: '黃斑點病變', desc: '視野中央出現黑影或扭曲，須依賴餘光。', icon: '⚫', color: 'bg-slate-200' },
+                                        { id: 'presbyopia', name: '老花', desc: '近距離事物模糊，必須拿遠才能看清。', icon: '📖', color: 'bg-blue-100' }
+                                    ].map(f => (
+                                        <button
+                                            key={f.id}
+                                            onClick={() => { 
+                                                setFilter(f.id); 
+                                                setGameState('stage1'); 
+                                                setTime(60); 
+                                                setCurrentDimSumItems([...DIM_SUM_ITEMS].sort(() => Math.random() - 0.5));
+                                                
+                                                const shuffledMTR = [...MTR_EXITS].sort(() => Math.random() - 0.5);
+                                                setMtrTargets([shuffledMTR[0], shuffledMTR[1]]);
+                                                setCurrentMTRTargetIndex(0);
+
+                                                const randomBusStop = BUS_STOPS[Math.floor(Math.random() * BUS_STOPS.length)];
+                                                setBusTarget(randomBusStop);
+                                            }}
+                                            className={`${f.color} p-6 rounded-2xl shadow-sm hover:shadow-md transition-all hover:-translate-y-1 text-left group`}
+                                        >
+                                            <div className="text-3xl mb-3">{f.icon}</div>
+                                            <h3 className="font-bold text-xl mb-2 group-hover:text-orange-600">{f.name}</h3>
+                                            <p className="text-sm text-slate-600">{f.desc}</p>
+                                            <div className="mt-4 flex items-center text-sm font-semibold text-slate-700">
+                                                開始體驗 <span className="ml-1">▶️</span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {gameState === 'stage1' && (
+                            <div className="flex-1 flex flex-col relative">
+                                <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-500 relative z-[60]">
+                                    <h2 className="text-xl font-bold flex items-center gap-2"><span>☕</span> 任務一：酒樓劃飛</h2>
+                                    <p className="text-slate-600 mt-1">孫仔想食：<span className="font-bold text-orange-600">蝦餃、燒賣、叉燒包</span>。請喺點心紙上搵出並點擊佢哋！</p>
+                                </div>
+                                
+                                <div className="grid grid-cols-4 gap-2 flex-1">
+                                    {currentDimSumItems.map((item, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => handleDimSumClick(item)}
+                                            disabled={dimSumFound.includes(item)}
+                                            className={`border-2 p-2 rounded-md text-center flex items-center justify-center transition-colors
+                                                ${dimSumFound.includes(item) ? 'bg-green-100 border-green-500 text-green-700' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'}
+                                                ${filter === 'presbyopia' ? 'text-xs' : 'text-base font-medium'}`}
+                                            style={{ writingMode: 'vertical-rl', minHeight: '80px' }}
+                                        >
+                                            {item}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {gameState === 'stage2' && (
+                            <div className="flex-1 flex flex-col relative">
+                                <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border-l-4 border-indigo-500 relative z-[60]">
+                                    <h2 className="text-xl font-bold flex items-center justify-between gap-2">
+                                        <span className="flex items-center gap-2"><span>📍</span> 任務二：地鐵搵路</span>
+                                        <span className="text-sm font-medium bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full">
+                                            進度 {currentMTRTargetIndex + 1}/2
+                                        </span>
+                                    </h2>
+                                    <p className="text-slate-600 mt-2">約咗孫女喺 <span className="font-bold text-indigo-600 text-lg">{mtrTargets[currentMTRTargetIndex].name.split(' ')[0]}</span> 等，應該行邊個出口？</p>
+                                </div>
+
+                                <div className="bg-slate-800 p-6 rounded-xl flex-1 flex flex-col gap-4 relative overflow-hidden">
+                                    <div className="absolute inset-0 opacity-10 pointer-events-none">
+                                        <div className="w-full h-20 bg-white animate-[slide_3s_ease-in-out_infinite] mb-10"></div>
+                                        <div className="w-full h-20 bg-white animate-[slide_4s_ease-in-out_infinite_reverse]"></div>
+                                    </div>
+
+                                    {MTR_EXITS.map((exit) => (
+                                        <button
+                                            key={exit.id}
+                                            onClick={() => handleMTRClick(exit.id)}
+                                            className="bg-white/90 p-4 rounded flex items-center gap-4 hover:bg-white transition-colors text-left relative z-10"
+                                        >
+                                            <div className="bg-yellow-400 text-slate-900 font-bold text-2xl w-12 h-12 flex items-center justify-center rounded shrink-0">
+                                                {exit.id}
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-lg text-slate-800">{exit.name.split(' ')[0]}</div>
+                                                <div className={`text-slate-500 ${filter === 'presbyopia' ? 'text-[8px]' : 'text-xs'}`}>{exit.name.split(' ').slice(1).join(' ')}</div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {gameState === 'stage3' && (
+                            <div className="flex-1 flex flex-col relative items-center">
+                                <div className="mb-6 w-full bg-white p-4 rounded-xl shadow-sm border-l-4 border-red-500 relative z-[60]">
+                                    <h2 className="text-xl font-bold flex items-center gap-2"><span>🚌</span> 任務三：搭車返屋企</h2>
+                                    <p className="text-slate-600 mt-1">搭 53 號巴士，喺 <span className="font-bold text-red-600">{busTarget.name}</span> 落車，車費幾多？請點擊正確車站。</p>
+                                </div>
+
+                                <div className="w-full max-w-sm bg-white border-8 border-slate-800 rounded-3xl h-[500px] overflow-hidden flex flex-col relative">
+                                    <div className="bg-red-600 text-white p-3 text-center font-bold flex justify-between items-center">
+                                        <span>&lt;</span>
+                                        <span>53 往 元朗</span>
+                                        <span className="text-xs border p-1 rounded">社區資訊站</span>
+                                    </div>
+                                    
+                                    <button 
+                                        onClick={() => showFeedback('㩒錯制，入咗廣告版面！', true)}
+                                        className="bg-orange-100 p-2 text-center text-xs text-orange-800 border-b flex items-center justify-between"
+                                    >
+                                        <span>🐨 樹熊冷知識 - 親子好去處</span>
+                                        <span className="bg-white px-1 rounded border">x</span>
+                                    </button>
+
+                                    <div className="flex-1 overflow-y-auto p-2 space-y-2 relative">
+                                        <div className="absolute left-4 top-0 bottom-0 w-1 bg-red-200"></div>
+                                        {BUS_STOPS.map((stop) => (
+                                            <button
+                                                key={stop.no}
+                                                onClick={() => handleBusClick(stop.name)}
+                                                className="w-full flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded text-left hover:bg-slate-100 z-10 relative"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-3 h-3 rounded-full bg-white border-2 border-red-500 z-20"></div>
+                                                    <div>
+                                                        <div className={`font-bold text-slate-800 ${filter === 'presbyopia' ? 'text-xs' : 'text-sm'}`}>{stop.no}. {stop.name}</div>
+                                                        <div className={`text-slate-500 ${filter === 'presbyopia' ? 'text-[8px]' : 'text-xs'}`}>車資: {stop.fare}</div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {gameState === 'report' && (
+                            <div className="flex flex-col items-center justify-center h-full animate-fade-in z-50 bg-white/90 p-8 rounded-2xl shadow-xl">
+                                <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center text-orange-500 mb-6 text-4xl">
+                                    {time > 0 ? '👁️' : '⚠️'}
+                                </div>
+                                <h2 className="text-3xl font-bold mb-2">
+                                    {time > 0 ? '體驗完成！' : '時間到！任務失敗'}
+                                </h2>
+                                <p className="text-lg text-slate-600 mb-8 text-center max-w-md">
+                                    剩餘時間：<span className="font-bold text-orange-600">{time} 秒</span> <br/>
+                                    最終疲勞值：<span className="font-bold text-orange-600">{fatigue}%</span>
+                                </p>
+
+                                <div className="bg-slate-50 p-6 rounded-xl text-left max-w-lg mb-8 border border-slate-200">
+                                    <h3 className="font-bold text-lg mb-3">📝 體驗反思報告：</h3>
+                                    <p className="text-slate-700 leading-relaxed">
+                                        {time > 0 
+                                            ? '雖然你成功完成了任務，但過程中是否感到視力受阻帶來的焦慮與壓力？尋找正確資訊時，是否覺得特別吃力？' 
+                                            : '限時的壓力加上視覺的障礙，讓你無法順利完成日常小事。這正是許多長者每天面對的無力感。'}
+                                        <br/><br/>
+                                        當長者在點餐慢、找不到路、或不會用 App 時，他們需要的不是催促，而是我們的<strong>耐心與同理</strong>。
+                                    </p>
+                                </div>
+                                <button 
+                                    onClick={resetGame}
+                                    className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-full font-bold text-lg transition-colors flex items-center gap-2 shadow-lg"
+                                >
+                                    <span>🔄</span> 重新體驗其他眼疾
+                                </button>
+                            </div>
+                        )}
+
+                    </div>
+
+                    {/* 底部操作區 */}
+                    {gameState.startsWith('stage') && (filter === 'presbyopia' || filter === 'macular') && (
+                        <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 z-[60] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                            <div className="max-w-4xl mx-auto flex justify-center items-center gap-4">
+                                {filter === 'presbyopia' && (
+                                    <button 
+                                        onMouseDown={() => setIsHoldingFar(true)}
+                                        onMouseUp={() => setIsHoldingFar(false)}
+                                        onTouchStart={() => setIsHoldingFar(true)}
+                                        onTouchEnd={() => setIsHoldingFar(false)}
+                                        className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-6 py-2 rounded-full font-bold flex items-center gap-2 transition-colors shadow-md"
+                                    >
+                                        <span>🖐️</span> 撳住拉遠手機 (瞇起眼)
+                                    </button>
+                                )}
+
+                                {filter === 'macular' && (
+                                    <button 
+                                        onMouseDown={() => setIsShiftingGaze(true)}
+                                        onMouseUp={() => setIsShiftingGaze(false)}
+                                        onTouchStart={() => setIsShiftingGaze(true)}
+                                        onTouchEnd={() => setIsShiftingGaze(false)}
+                                        className="bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white px-6 py-2 rounded-full font-bold flex items-center gap-2 transition-colors shadow-md"
+                                    >
+                                        <span>👁️</span> 撳住用餘光睇 (偏心注視)
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // 啟動 React 應用程式
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
