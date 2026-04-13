@@ -2,8 +2,9 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
+    <!-- 加入 maximum-scale=1.0 與 user-scalable=0 以防止手機雙擊放大與捏合縮放 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>老友記視界體驗 (Elderly Vision Simulator)</title>
+    <title>老友記視覺體驗 (Elderly Vision Simulator)</title>
     
     <!-- 網頁圖示 (Favicon): 使用 SVG 嵌入圖示，無需外部圖片檔 -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👓</text></svg>">
@@ -26,10 +27,13 @@
             height: 100%;
             overflow: hidden;
             background-color: #f8fafc; /* slate-50 */
+            /* 提升觸控體驗，禁止雙擊延遲 */
             touch-action: manipulation;
+            /* 預防文字意外反白 */
             -webkit-user-select: none;
             user-select: none;
         }
+        /* 隱藏捲軸但保留捲動功能，讓手機畫面更乾淨 */
         ::-webkit-scrollbar {
             width: 6px;
         }
@@ -65,6 +69,7 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback } = React;
 
+        // --- 遊戲資料 ---
         const DIM_SUM_ITEMS = ['蝦餃', '燒賣', '叉燒包', '排骨', '鳳爪', '馬拉糕', '腸粉', '咸水角', '春卷', '蘿蔔糕', '牛肉球', '粉果', '糯米雞', '芋角', '蛋撻', '奶黃包'];
         const TARGET_DIM_SUM = ['蝦餃', '燒賣', '叉燒包'];
 
@@ -251,6 +256,7 @@
 
             return (
                 <div 
+                    /* 將 h-screen 改為 h-[100dvh]，動態適應手機瀏覽器的高度，防止底部被裁切 */
                     className={`h-[100dvh] w-full bg-slate-50 text-slate-800 font-sans overflow-hidden ${isHoldingFar && filter === 'presbyopia' ? 'scale-[0.65] origin-center transition-transform duration-300' : 'scale-100 transition-transform duration-300'}`}
                 >
                     <FilterOverlay />
@@ -291,24 +297,23 @@
                         </div>
                     ))}
 
-                    {/* 回饋訊息置中 */}
+                    {/* 回饋訊息置中，確保手機版不會跑版 */}
                     {feedbackMsg && (
-                        <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 w-[90%] max-sm text-center z-[80] px-4 py-3 rounded-lg shadow-xl text-white font-bold text-sm sm:text-lg transition-all ${feedbackMsg.isError ? 'bg-red-500 animate-bounce' : 'bg-green-500'}`}>
+                        <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 w-[90%] max-w-sm text-center z-[80] px-4 py-3 rounded-lg shadow-xl text-white font-bold text-sm sm:text-lg transition-all ${feedbackMsg.isError ? 'bg-red-500 animate-bounce' : 'bg-green-500'}`}>
                             {feedbackMsg.text}
                         </div>
                     )}
 
-                    {/* 主內容區域 */}
+                    {/* 主內容區域：優化滾動與 Safe Area */}
                     <div className="pt-[70px] pb-32 px-3 sm:px-4 max-w-4xl mx-auto h-full flex flex-col overflow-y-auto overflow-x-hidden">
                         
                         {gameState === 'intro' && (
                             <div className="flex flex-col items-center justify-center min-h-full space-y-6 sm:space-y-8 animate-fade-in py-8">
                                 <div className="text-center space-y-3 sm:space-y-4">
-                                    {/* 頁面大標題加圖示 */}
                                     <div className="flex justify-center mb-2">
                                         <div className="bg-orange-100 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-3xl sm:text-4xl shadow-inner">👵</div>
                                     </div>
-                                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-800 tracking-tight">老友記<br className="sm:hidden" /><span className="text-orange-500">視界體驗</span></h1>
+                                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-800 tracking-tight">老友記<br className="sm:hidden" /><span className="text-orange-500">視覺體驗</span></h1>
                                     <p className="text-sm sm:text-lg text-slate-600 max-w-lg mx-auto">
                                         戴上虛擬眼疾濾鏡，化身長者完成日常任務。體驗「看不清」帶來的生活不便與焦慮感。
                                     </p>
@@ -356,6 +361,7 @@
                                     <p className="text-sm sm:text-base text-slate-600 mt-1">孫仔想食：<span className="font-bold text-orange-600">蝦餃、燒賣、叉燒包</span>。</p>
                                 </div>
                                 
+                                {/* 在手機上顯示 3 欄，平板以上 4 欄，確保按鈕寬度適中 */}
                                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 flex-1 overflow-y-auto pb-4 content-start">
                                     {currentDimSumItems.map((item, idx) => (
                                         <button
@@ -389,9 +395,10 @@
                                 <div className="bg-slate-800 p-3 sm:p-6 rounded-xl flex-1 flex flex-col relative overflow-hidden h-full">
                                     <div className="absolute inset-0 opacity-10 pointer-events-none">
                                         <div className="w-full h-10 sm:h-20 bg-white animate-[slide_3s_ease-in-out_infinite] mb-6 sm:mb-10"></div>
-                                        <div className="w-full h-10 sm:h-20 bg-white animate-[slide_4s_ease-in-out_infinite_reverse]"></div>
+                                        <div className="w-full h-10 sm:h-20 bg-white animate-[slide_4s_infinite_reverse]"></div>
                                     </div>
 
+                                    {/* 讓地鐵選項區可滾動，防止被截斷 */}
                                     <div className="flex-1 overflow-y-auto space-y-3 z-10 pr-1 pb-4">
                                         {MTR_EXITS.map((exit) => (
                                             <button
@@ -420,6 +427,7 @@
                                     <p className="text-sm sm:text-base text-slate-600 mt-1">喺 <span className="font-bold text-red-600">{busTarget.name}</span> 落車，點擊正確車站。</p>
                                 </div>
 
+                                {/* 優化手機模擬高度，使其在短螢幕上不溢出 */}
                                 <div className="w-full max-w-sm flex-1 min-h-[300px] bg-white border-[6px] sm:border-8 border-slate-800 rounded-[2rem] overflow-hidden flex flex-col relative shadow-xl">
                                     <div className="bg-red-600 text-white p-2 sm:p-3 text-center font-bold flex justify-between items-center shrink-0">
                                         <span>&lt;</span>
