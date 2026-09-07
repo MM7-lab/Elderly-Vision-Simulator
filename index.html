@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title>老友記視覺體驗 (Elderly Vision Simulator)</title>
     
-    <!-- 網頁圖示 (Favicon): 使用 SVG 嵌入圖示，無需外部圖片檔 -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👓</text></svg>">
+    <!-- 網頁圖示 (Favicon): 使用純向量設計的圓圈老花鏡圖案，確保在所有螢幕上完美清晰 -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23f97316' /><stop offset='100%25' stop-color='%23ea580c' /></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23g)' /><circle cx='35' cy='50' r='14' fill='none' stroke='white' stroke-width='5' /><circle cx='35' cy='50' r='5' fill='white' opacity='0.3' /><circle cx='65' cy='50' r='14' fill='none' stroke='white' stroke-width='5' /><circle cx='65' cy='50' r='9' fill='none' stroke='white' stroke-width='2.5' stroke-dasharray='3 3' /><circle cx='65' cy='50' r='4' fill='white' /><path d='M49 50 Q50 44 51 50' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' /></svg>">
     
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -220,13 +220,23 @@
                 if (filter === 'cataracts') {
                     const blurAmount = 1 + (fatigue / 100) * 3;
                     return (
-                        <div 
-                            className="pointer-events-none fixed inset-0 z-50 mix-blend-multiply"
-                            style={{ 
-                                backdropFilter: `blur(${blurAmount}px) contrast(70%) sepia(40%)`,
-                                backgroundColor: `rgba(200, 180, 100, ${0.1 + fatigue/400})` 
-                            }} 
-                        />
+                        <React.Fragment>
+                            {/* 第一層：純模糊層。將 backdrop-filter 獨立出來，避開 iOS Safari 的渲染 Bug */}
+                            <div 
+                                className="pointer-events-none fixed inset-0 z-[50]"
+                                style={{ 
+                                    backdropFilter: `blur(${blurAmount}px)`,
+                                    WebkitBackdropFilter: `blur(${blurAmount}px)`
+                                }} 
+                            />
+                            {/* 第二層：色彩混疊層。負責處理白內障的視覺黃化與對比度下降 */}
+                            <div 
+                                className="pointer-events-none fixed inset-0 z-[51] mix-blend-multiply"
+                                style={{ 
+                                    backgroundColor: `rgba(220, 200, 150, ${0.15 + fatigue/400})`
+                                }} 
+                            />
+                        </React.Fragment>
                     );
                 }
                 if (filter === 'macular') {
@@ -245,9 +255,14 @@
                     );
                 }
                 if (filter === 'presbyopia') {
+                    /* 將 Tailwind 語法改為 Inline Style，以確保精準注入 Webkit 前綴 */
                     return (
                         <div 
-                            className={`pointer-events-none fixed inset-0 z-50 transition-all duration-300 ${isHoldingFar ? 'backdrop-blur-none' : 'backdrop-blur-[4px]'}`}
+                            className="pointer-events-none fixed inset-0 z-50 transition-all duration-300"
+                            style={{
+                                backdropFilter: isHoldingFar ? 'none' : 'blur(4px)',
+                                WebkitBackdropFilter: isHoldingFar ? 'none' : 'blur(4px)',
+                            }}
                         />
                     );
                 }
@@ -297,21 +312,28 @@
                         </div>
                     ))}
 
-                    {/* 回饋訊息置中，確保手機版不會跑版 */}
+                    {/* 回饋訊息 */}
                     {feedbackMsg && (
                         <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 w-[90%] max-w-sm text-center z-[80] px-4 py-3 rounded-lg shadow-xl text-white font-bold text-sm sm:text-lg transition-all ${feedbackMsg.isError ? 'bg-red-500 animate-bounce' : 'bg-green-500'}`}>
                             {feedbackMsg.text}
                         </div>
                     )}
 
-                    {/* 主內容區域：優化滾動與 Safe Area */}
+                    {/* 主內容區域 */}
                     <div className="pt-[70px] pb-32 px-3 sm:px-4 max-w-4xl mx-auto h-full flex flex-col overflow-y-auto overflow-x-hidden">
                         
                         {gameState === 'intro' && (
                             <div className="flex flex-col items-center justify-center min-h-full space-y-6 sm:space-y-8 animate-fade-in py-8">
                                 <div className="text-center space-y-3 sm:space-y-4">
                                     <div className="flex justify-center mb-2">
-                                        <div className="bg-orange-100 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-3xl sm:text-4xl shadow-inner">👵</div>
+                                        {/* 向量裝飾大圖示 */}
+                                        <div className="bg-orange-100 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center shadow-inner">
+                                            <svg className="w-10 h-10 sm:w-12 sm:h-12 text-orange-500" viewBox="0 0 100 100">
+                                                <circle cx="35" cy="50" r="12" fill="none" stroke="currentColor" strokeWidth="6"/>
+                                                <circle cx="65" cy="50" r="12" fill="none" stroke="currentColor" strokeWidth="6"/>
+                                                <path d="M47 50 Q50 43 53 50" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round"/>
+                                            </svg>
+                                        </div>
                                     </div>
                                     <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-800 tracking-tight">老友記<br className="sm:hidden" /><span className="text-orange-500">視覺體驗</span></h1>
                                     <p className="text-sm sm:text-lg text-slate-600 max-w-lg mx-auto">
@@ -361,7 +383,6 @@
                                     <p className="text-sm sm:text-base text-slate-600 mt-1">孫仔想食：<span className="font-bold text-orange-600">蝦餃、燒賣、叉燒包</span>。</p>
                                 </div>
                                 
-                                {/* 在手機上顯示 3 欄，平板以上 4 欄，確保按鈕寬度適中 */}
                                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 flex-1 overflow-y-auto pb-4 content-start">
                                     {currentDimSumItems.map((item, idx) => (
                                         <button
@@ -398,7 +419,6 @@
                                         <div className="w-full h-10 sm:h-20 bg-white animate-[slide_4s_infinite_reverse]"></div>
                                     </div>
 
-                                    {/* 讓地鐵選項區可滾動，防止被截斷 */}
                                     <div className="flex-1 overflow-y-auto space-y-3 z-10 pr-1 pb-4">
                                         {MTR_EXITS.map((exit) => (
                                             <button
@@ -427,7 +447,6 @@
                                     <p className="text-sm sm:text-base text-slate-600 mt-1">喺 <span className="font-bold text-red-600">{busTarget.name}</span> 落車，點擊正確車站。</p>
                                 </div>
 
-                                {/* 優化手機模擬高度，使其在短螢幕上不溢出 */}
                                 <div className="w-full max-w-sm flex-1 min-h-[300px] bg-white border-[6px] sm:border-8 border-slate-800 rounded-[2rem] overflow-hidden flex flex-col relative shadow-xl">
                                     <div className="bg-red-600 text-white p-2 sm:p-3 text-center font-bold flex justify-between items-center shrink-0">
                                         <span>&lt;</span>
